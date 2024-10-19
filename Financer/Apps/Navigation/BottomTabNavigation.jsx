@@ -5,7 +5,7 @@ import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityI
 import HomeScreenFab from "../Screens/homScreenFab";
 import BudandGoal from "../Screens/BudandGoal";
 import Exandinc from "../Screens/exandinc";
-import Portfolio from "../Screens/portfolio";
+import Portfolio from "../Screens/Portfolio";
 
 const Tab = createMaterialBottomTabNavigator();
 
