@@ -1,7 +1,7 @@
 import { View, Text } from 'react-native'
 import React from 'react'
 
-const portfolio = () => {
+const Portfolio = () => {
   return (
     <View>
       <Text>portfolio</Text>
@@ -9,4 +9,4 @@ const portfolio = () => {
   )
 }
 
-export default portfolio
+export default Portfolio
