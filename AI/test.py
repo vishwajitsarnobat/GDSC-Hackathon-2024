@@ -1,181 +1,135 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
+import yfinance as yf
 import pandas as pd
 import numpy as np
-import yfinance as yf
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
-import requests
-from bs4 import BeautifulSoup
 import logging
-from datetime import datetime, timedelta
 
-# Logging configuration
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = FastAPI()
 
+class PortfolioItem(BaseModel):
+    symbol: str
+    type: str
+    quantity: float
+
 class Portfolio(BaseModel):
-    tickets: List[str]
+    items: List[PortfolioItem]
+    risk_factor: float
 
-# Helper functions
+class SuggestedItem(BaseModel):
+    symbol: str
+    type: str
+    quantity: float
+    risk_percentage: float
 
-def fetch_stock_data(symbol, period='2y'):
-    """Fetch stock data from Yahoo Finance with error handling."""
+class RebalancedPortfolio(BaseModel):
+    items: List[SuggestedItem]
+
+def fetch_data(symbol, period='2y'):
     try:
         data = yf.download(symbol, period=period)
         if data.empty:
             raise ValueError(f"No data available for {symbol}")
-        data = data.dropna().interpolate(method='time')
-        logging.info(f"Data fetched for {symbol}")
         return data
     except Exception as e:
         logging.error(f"Error fetching data for {symbol}: {e}")
         return None
 
-def get_financial_news(symbol):
-    """Fetch financial news for a given symbol from Moneycontrol."""
-    base_url = "https://www.moneycontrol.com/news/business/stocks/"
-    search_term = symbol.split('.')[0].lower()  # Remove '.BO' and convert to lowercase
-    
-    try:
-        response = requests.get(f"{base_url}{search_term}/")
-        soup = BeautifulSoup(response.content, 'html.parser')
-        news_list = soup.find_all('li', class_='clearfix')
-        
-        articles = []
-        for news in news_list[:5]:  # Get top 5 news articles
-            title = news.find('h2').text.strip()
-            link = news.find('a')['href']
-            # Fetch the full article
-            article_response = requests.get(link)
-            article_soup = BeautifulSoup(article_response.content, 'html.parser')
-            body = article_soup.find('div', class_='content_wrapper arti-flow').text.strip()
-            author = article_soup.find('div', class_='article_author').text.strip() if article_soup.find('div', class_='article_author') else "Unknown"
-            articles.append({'title': title, 'author': author, 'body': body})
-        
-        logging.info(f"Fetched {len(articles)} news articles for {symbol}.")
-        return articles
-    except Exception as e:
-        logging.error(f"Error fetching news for {symbol}: {e}")
-        return []
-
-def calculate_risk_metrics(data):
-    """Calculate various risk metrics for a stock."""
+def predict_risk(data):
     if data is None or data.empty:
         return None
-    
+
     returns = data['Close'].pct_change().dropna()
-    volatility = returns.std() * np.sqrt(252)
-    beta = calculate_beta(returns)
-    sharpe_ratio = calculate_sharpe_ratio(returns)
+    features = pd.DataFrame({
+        'returns': returns,
+        'volatility': returns.rolling(window=30).std()
+    }).dropna()
+
+    target = features['volatility'].shift(-1).dropna()
+    features = features[:-1]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(features)
+
+    model = RandomForestRegressor(n_estimators=100, random_state=42)
+    model.fit(X_scaled[:-1], target[:-1])
+
+    last_data_point = scaler.transform(features.iloc[-1].values.reshape(1, -1))
+    return model.predict(last_data_point)[0]
+
+def rebalance_portfolio(portfolio: Portfolio):
+    risk_factor = portfolio.risk_factor
+    stock_allocation = risk_factor * 0.7
+    bond_allocation = (1 - risk_factor) * 0.3
     
-    return {
-        'volatility': volatility,
-        'beta': beta,
-        'sharpe_ratio': sharpe_ratio
-    }
-
-def calculate_beta(returns, market_returns=None):
-    """Calculate beta against the market (Nifty 50)."""
-    if market_returns is None:
-        try:
-            market_data = yf.download('^NSEI', start=returns.index[0], end=returns.index[-1])
-            market_returns = market_data['Adj Close'].pct_change().dropna()
-        except Exception as e:
-            logging.error(f"Error fetching market data: {e}")
-            return None
-
-    common_dates = returns.index.intersection(market_returns.index)
-    if len(common_dates) < 30:  # Require at least 30 data points
-        return None
-
-    stock_returns = returns.loc[common_dates]
-    market_returns = market_returns.loc[common_dates]
-
-    covariance = np.cov(stock_returns, market_returns)[0][1]
-    market_variance = np.var(market_returns)
-    return covariance / market_variance
-
-def calculate_sharpe_ratio(returns, risk_free_rate=0.05):
-    """Calculate Sharpe ratio."""
-    excess_returns = returns - risk_free_rate / 252  # Assuming 252 trading days
-    return np.sqrt(252) * excess_returns.mean() / returns.std()
-
-# Endpoint functions
-
-@app.post("/getNews/")
-async def get_news(portfolio: Portfolio):
-    """Receive portfolio (tickets) and return latest relevant news."""
-    all_news = []
-    for symbol in portfolio.tickets:
-        news = get_financial_news(symbol)
-        all_news.extend([{
-            "symbol": symbol,
-            "title": article['title'],
-            "author": article['author'],
-            "body": article['body']
-        } for article in news])
-    return all_news
-
-@app.post("/getRiskyStocks/")
-async def get_risky_stocks(portfolio: Portfolio):
-    """Receive portfolio (tickets) and return risky stocks."""
-    risky_stocks = []
-    for symbol in portfolio.tickets:
-        data = fetch_stock_data(symbol)
-        if data is not None:
-            risk_metrics = calculate_risk_metrics(data)
-            if risk_metrics:
-                # Define a simple risk threshold (you may want to adjust this)
-                if risk_metrics['volatility'] > 0.3 or risk_metrics['beta'] > 1.5:
-                    risky_stocks.append({
-                        "symbol": symbol,
-                        "volatility": risk_metrics['volatility'],
-                        "beta": risk_metrics['beta'],
-                        "sharpe_ratio": risk_metrics['sharpe_ratio']
-                    })
-    return risky_stocks
-
-@app.post("/getCategoryStocks/")
-async def get_category_stocks(portfolio: Portfolio):
-    """Receive portfolio (tickets) and return categorised portfolio."""
-    categories = {
-        "Large Cap": [],
-        "Mid Cap": [],
-        "Small Cap": [],
-        "High Growth": [],
-        "Value": [],
-        "Dividend": []
-    }
+    total_value = sum(item.quantity for item in portfolio.items)
     
-    for symbol in portfolio.tickets:
-        data = fetch_stock_data(symbol)
+    rebalanced_items = []
+    for item in portfolio.items:
+        if item.type in ['stock', 'etf', 'mutual_fund']:
+            new_quantity = (item.quantity / total_value) * stock_allocation * total_value
+        elif item.type == 'bond':
+            new_quantity = (item.quantity / total_value) * bond_allocation * total_value
+        else:
+            new_quantity = item.quantity  # Keep other asset types unchanged
+        
+        rebalanced_items.append({
+            'symbol': item.symbol,
+            'type': item.type,
+            'quantity': new_quantity
+        })
+    
+    return rebalanced_items
+
+def suggest_portfolio(rebalanced_items: List[dict], risk_factor: float):
+    suggested_items = []
+    
+    for item in rebalanced_items:
+        data = fetch_data(item['symbol'])
+        
         if data is not None:
-            market_cap = data['Close'].iloc[-1] * data['Volume'].iloc[-1]
-            pe_ratio = data['Close'].iloc[-1] / (data['Close'].pct_change().mean() * 252)
-            dividend_yield = (data['Close'].pct_change().mean() * 252) / data['Close'].iloc[-1]
-            
-            # Categorize based on market cap
-            if market_cap > 200000000000:  # 20,000 crores
-                categories["Large Cap"].append(symbol)
-            elif market_cap > 50000000000:  # 5,000 crores
-                categories["Mid Cap"].append(symbol)
+            predicted_risk = predict_risk(data)
+            if predicted_risk is not None:
+                risk_adjustment = (predicted_risk / risk_factor) if risk_factor > 0 else 1
+                suggested_quantity = item['quantity'] * risk_adjustment
+                
+                suggested_items.append(SuggestedItem(
+                    symbol=item['symbol'],
+                    type=item['type'],
+                    quantity=suggested_quantity,
+                    risk_percentage=predicted_risk * 100
+                ))
             else:
-                categories["Small Cap"].append(symbol)
-            
-            # Categorize based on growth and value
-            if pe_ratio < 15:
-                categories["Value"].append(symbol)
-            elif data['Close'].pct_change().mean() * 252 > 0.25:  # 25% annual growth
-                categories["High Growth"].append(symbol)
-            
-            # Categorize based on dividend yield
-            if dividend_yield > 0.03:  # 3% dividend yield
-                categories["Dividend"].append(symbol)
+                suggested_items.append(SuggestedItem(
+                    symbol=item['symbol'],
+                    type=item['type'],
+                    quantity=item['quantity'],
+                    risk_percentage=0
+                ))
+        else:
+            suggested_items.append(SuggestedItem(
+                symbol=item['symbol'],
+                type=item['type'],
+                quantity=item['quantity'],
+                risk_percentage=0
+            ))
     
-    return categories
+    return suggested_items
+
+@app.post("/rebalance_and_suggest/", response_model=RebalancedPortfolio)
+async def rebalance_and_suggest(portfolio: Portfolio):
+    try:
+        rebalanced_items = rebalance_portfolio(portfolio)
+        suggested_items = suggest_portfolio(rebalanced_items, portfolio.risk_factor)
+        return RebalancedPortfolio(items=suggested_items)
+    except Exception as e:
+        logging.error(f"Error in rebalance_and_suggest: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

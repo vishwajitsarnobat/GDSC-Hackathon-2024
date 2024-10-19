@@ -1,21 +1,42 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, View, RefreshControl } from "react-native";
 import { FAB, Portal, PaperProvider } from "react-native-paper";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
+import Header from "../Components/HomeScreen/Header";
+import MonthlyStats from "../Components/HomeScreen/MonthlyStats";
+import TopCategories from "../Components/HomeScreen/TopCategeory";
 
 export default function HomeScreenFab({ navigation }) {
-  const [state, setState] = React.useState({ open: false });
+  const [state, setState] = useState({ open: false });
+  const [refreshing, setRefreshing] = useState(false);
 
   const onStateChange = ({ open }) => setState({ open });
 
   const { open } = state;
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    // Simulate a network request or data fetching here
+    // You can call your fetch functions for MonthlyStats and TopCategories here
+    // await fetchData();
+    setTimeout(() => {
+      setRefreshing(false); // Stop refreshing after the operation is complete
+    }, 2000); // Simulate a 2-second loading time
+  };
+
   return (
     <PaperProvider>
       <View style={styles.container}>
-        <View>
-          <Text style={styles.welcomeText}>Welcome to Home Screen</Text>
-        </View>
+        <ScrollView
+          contentContainerStyle={styles.scrollViewContainer}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
+          <Header />
+          <MonthlyStats />
+          <TopCategories />
+        </ScrollView>
         <Portal>
           <FAB.Group
             open={open}
@@ -96,9 +117,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    marginTop: 35,
   },
-  welcomeText: {
-    fontSize: 20,
-    fontWeight: "bold",
+  scrollViewContainer: {
+    alignItems: "center",
+    justifyContent: "flex-start", // You can change this to "center" if needed
+    paddingBottom: 100, // Optional, for spacing at the bottom
   },
 });

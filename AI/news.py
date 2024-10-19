@@ -1,9 +1,13 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 import requests
-from bs4 import BeautifulSoup
+import os
+from dotenv import load_dotenv
 import logging
+
+# Load environment variables
+load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -12,46 +16,71 @@ app = FastAPI()
 class Portfolio(BaseModel):
     tickets: List[str]
 
-def get_financial_news(symbol):
-    """Fetch financial news for a given symbol from Moneycontrol."""
-    base_url = "https://www.moneycontrol.com/news/business/stocks/"
-    search_term = symbol.split('.')[0].lower()  # Remove '.BO' and convert to lowercase
+# Hugging Face API settings
+API_URL = "https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-3B-Instruct"
+API_TOKEN = os.getenv("HUGGINGFACE_API_TOKEN")
+
+# Check if API token is loaded correctly
+if not API_TOKEN:
+    logging.error("Hugging Face API token not found!")
+    raise Exception("Hugging Face API token not set in environment variables.")
+
+headers = {"Authorization": f"Bearer {API_TOKEN}"}
+
+def query_huggingface_api(payload):
+    response = requests.post(API_URL, headers=headers, json=payload)
+    # Log the full response for debugging
+    logging.info(f"Hugging Face API response: {response.status_code}, {response.text}")
+    return response.json()
+
+def generate_financial_news(symbol):
+    """Generate financial news for a given symbol using Hugging Face Inference API."""
+    prompt = f"Generate a brief financial news summary for the Indian company with stock symbol {symbol}. Include recent performance, any major events, and future outlook."
+    
+    payload = {
+        "inputs": prompt,
+        "parameters": {
+            "max_new_tokens": 150,
+            "temperature": 0.7,
+            "top_k": 50,
+            "top_p": 0.95,
+        }
+    }
     
     try:
-        response = requests.get(f"{base_url}{search_term}/") # search on website
-        soup = BeautifulSoup(response.content, 'html.parser') # parse
-        news_list = soup.find_all('li', class_='clearfix') # get relevant info
+        response = query_huggingface_api(payload)
         
-        articles = []
-        for news in news_list[:5]:  # Get top 5 news articles
-            title = news.find('h2').text.strip() # get headline
-            link = news.find('a')['href'] # get url
-            # Fetch the full article
-            article_response = requests.get(link) # fetch content from link
-            article_soup = BeautifulSoup(article_response.content, 'html.parser') # parse
-            body = article_soup.find('div', class_='content_wrapper arti-flow').text.strip() 
-            author = article_soup.find('div', class_='article_author').text.strip() if article_soup.find('div', class_='article_author') else "Unknown"
-            articles.append({'title': title, 'author': author, 'body': body})
+        if isinstance(response, list) and len(response) > 0 and 'generated_text' in response[0]:
+            generated_text = response[0]['generated_text']
+            # Remove the prompt from the generated text if needed
+            news_summary = generated_text[len(prompt):].strip()
+        else:
+            news_summary = "Failed to generate summary"
         
-        logging.info(f"Fetched {len(articles)} news articles for {symbol}.")
-        return articles
+        logging.info(f"Generated news summary for {symbol}")
+        
+        return {
+            "symbol": symbol,
+            "summary": news_summary
+        }
     except Exception as e:
-        logging.error(f"Error fetching news for {symbol}: {e}")
-        return []
+        logging.error(f"Error generating news for {symbol}: {str(e)}")
+        return {
+            "symbol": symbol,
+            "summary": "Error generating news summary"
+        }
 
-# api part
 @app.post("/getNews/")
 async def get_news(portfolio: Portfolio):
-    """Receive portfolio (tickets) and return latest relevant news."""
+    """Receive portfolio (tickets) and return generated news summaries."""
     all_news = []
     for symbol in portfolio.tickets:
-        news = get_financial_news(symbol)
-        all_news.extend([{
-            "symbol": symbol,
-            "title": article['title'],
-            "author": article['author'],
-            "body": article['body']
-        } for article in news])
+        news = generate_financial_news(symbol)
+        all_news.append(news)
+    
+    if not all_news:
+        raise HTTPException(status_code=404, detail="Failed to generate news for the given portfolio")
+    
     return all_news
 
 if __name__ == "__main__":
