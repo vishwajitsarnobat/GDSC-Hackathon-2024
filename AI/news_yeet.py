@@ -5,6 +5,8 @@ from nltk.sentiment.vader import SentimentIntensityAnalyzer
 import nltk
 import logging
 from datetime import datetime, timedelta
+from groq import Groq
+import json
 
 # Setup logging
 logging.basicConfig(
@@ -16,6 +18,11 @@ try:
     nltk.download("vader_lexicon")
 except Exception as e:
     logging.error(f"Error downloading vader_lexicon: {e}")
+
+
+def get_api_key(file_path):
+    with open(file_path, "r") as file:
+        return file.read().strip()
 
 
 # Function to get sentiment using VADER model
@@ -106,17 +113,95 @@ def fetch_news_data(tickers):
     return news
 
 
-# 0=positive. 1=negative. 0.5=neutral
+# Function to get summary using LLaMA model
+def get_summary_llama(prompt=""):
+    api_key = get_api_key("api_key.txt")
+    client = Groq(api_key=api_key)
+    try:
+        completion = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                    + ". Provide a 2-3 line summary of this article. dont write amything else. not even here is the information you requested.",
+                }
+            ],
+            temperature=1,
+            max_tokens=8192,
+            top_p=1,
+            stream=False,
+            stop=None,
+        )
+
+        # Extract the response content
+        response_content = completion.choices[0].message.content
+
+        return response_content.strip()
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+
+# Function to fetch article content
+def fetch_article_content(url):
+    try:
+        req = Request(
+            url=url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+            },
+        )
+        resp = urlopen(req)
+        html = BeautifulSoup(resp, features="lxml")
+        paragraphs = html.find_all("p")
+        content = " ".join([para.get_text() for para in paragraphs])
+        return content
+    except Exception as e:
+        logging.error(f"Error fetching article content from {url}: {e}")
+        return None
+
+
+# Function to get JSON file of top 5 articles related to input company
+def get_top_articles_json(ticker):
+    news = fetch_news_data([ticker])
+    articles = []
+
+    for index, row in news.iterrows():
+        article_content = fetch_article_content(row["Link"])
+        if article_content:
+            summary = get_summary_llama(article_content)
+            if summary:
+                article = {
+                    "headline": row["Headline"],
+                    "author": "Unknown",  # Placeholder, as author extraction is not implemented
+                    "site": row["Link"],
+                    "summary": summary,
+                }
+                articles.append(article)
+
+    # Save to JSON file
+    print(f"Top 5 articles for {ticker} successfully fetched")
+    return json.dumps(articles, indent=4)
 
 
 # Main function to process news data and get summaries
 def main():
-    tickers = ["TCS", "HDB", "RELI"]
+    tickers = ["TCS"]
     news = fetch_news_data(tickers)
 
     print("Processing with VADER sentiment model:")
     vader_sentiments = get_sentiment_vader(news)
     print("VADER Sentiments:", vader_sentiments)
+
+    # Example usage of getting top articles JSON
+    output = []
+    for ticker in tickers:
+        article = get_top_articles_json(ticker)
+        output.append(article)
+    for article in output:
+        print(article)
 
 
 # Run the main function
