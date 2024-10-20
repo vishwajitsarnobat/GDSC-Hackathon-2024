@@ -20,9 +20,12 @@ except Exception as e:
     logging.error(f"Error downloading vader_lexicon: {e}")
 
 
-def get_api_key(file_path):
-    with open(file_path, "r") as file:
-        return file.read().strip()
+def get_api_key(env_file, key_name):
+    with open(env_file, "r") as file:
+        for line in file:
+            if line.startswith(key_name):
+                # Extract the API key value
+                return line.split("=")[1].strip().strip("'")
 
 
 # Function to get sentiment using VADER model
@@ -115,7 +118,7 @@ def fetch_news_data(tickers):
 
 # Function to get summary using LLaMA model
 def get_summary_llama(prompt=""):
-    api_key = get_api_key("../summary/api_key.txt")
+    api_key = get_api_key(".env", "GROQ_API_KEY")
     client = Groq(api_key=api_key)
     try:
         completion = client.chat.completions.create(
