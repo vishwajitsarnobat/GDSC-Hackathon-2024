@@ -124,6 +124,13 @@ async def fetch_news_data(tickers):
 # Asynchronous function to get summary using LLaMA model
 async def get_summary_llama(prompt=""):
     api_key = os.getenv("GROQ_API_KEY")
+    if not api_key:
+        logging.error("GROQ_API_KEY is not set in the environment variables.")
+        return None
+
+    # Debugging: Print the API key
+    logging.info(f"Using GROQ_API_KEY: {api_key}")
+
     client = Groq(api_key=api_key)
     try:
         completion = client.chat.completions.create(
@@ -148,7 +155,7 @@ async def get_summary_llama(prompt=""):
         return response_content.strip()
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logging.error(f"An error occurred: {e}")
         return None
 
 
