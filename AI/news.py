@@ -66,7 +66,7 @@ def get_sentiment_vader(news):
 
 
 # Function to fetch news data
-def fetch_news_data(tickers):
+async def fetch_news_data(tickers):
     finwiz_url = "https://finviz.com/quote.ashx?t="
     news_tables = {}
 
@@ -117,7 +117,7 @@ def fetch_news_data(tickers):
 
 
 # Function to get summary using LLaMA model
-def get_summary_llama(prompt=""):
+async def get_summary_llama(prompt=""):
     api_key = os.getenv("GROQ_API_KEY")
     client = Groq(api_key=api_key)
     try:
@@ -148,7 +148,7 @@ def get_summary_llama(prompt=""):
 
 
 # Function to fetch article content
-def fetch_article_content(url):
+async def fetch_article_content(url):
     try:
         req = Request(
             url=url,
@@ -166,7 +166,7 @@ def fetch_article_content(url):
         return None
 
 
-def generate_financial_news(tickers):
+async def generate_financial_news(tickers):
     """Generate financial news for a given symbol using LLAMA API."""
     output = {"articles": []}
 
