@@ -38,7 +38,7 @@ const promptData = {
 async function processPrompt(promptData) {
   try {
     const response = await axios.post(
-      "http://127.0.0.1:8000/processPrompt/",
+      "http://127.0.0.1:8003/processPrompt/",
       promptData,
       {
         headers: {

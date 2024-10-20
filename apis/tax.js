@@ -53,7 +53,7 @@ const past_sales = {
 async function taxOptimization(portfolio, past_sales) {
   try {
     const response = await axios.post(
-      "http://127.0.0.1:8000/tax_optimization/",
+      "http://127.0.0.1:8004/tax_optimization/",
       {
         portfolio,
         past_sales,

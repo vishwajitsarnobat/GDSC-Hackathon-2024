@@ -24,7 +24,7 @@ const portfolio = {
 async function rebalanceAndSuggest(portfolio) {
   try {
     const response = await axios.post(
-      "http://127.0.0.1:8000/rebalance_and_suggest/",
+      "http://127.0.0.1:8001/rebalance_and_suggest/",
       portfolio,
       {
         headers: {
