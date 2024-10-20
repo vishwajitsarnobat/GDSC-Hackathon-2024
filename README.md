@@ -1,68 +1,97 @@
-# GDSC-Hackathon-2024
-Here's an updated version of your README with the requested changes and additional details:
-
 ---
 
 # AI-Driven Financial Risk Management and Personal Finance Assistant
 
 ## Team Details  
 **Team Abhimanyu**  
-- **Team Leader**: Vishwajit Sarnobat  
+- **Team Leader**: Vishwajit Sarnobat (Github username: vishwajitsarnobat)
 - **Team Members**:  
-  - Nikhil Vishwakarma  
-  - Vinayak Yadav  
-  - Yateen Vaviya  
+  - Nikhil Vishwakarma  (Github username: Vishwakarma-Nikhil)
+  - Vinayak Yadav  (Github username: vinayakyadav2709)
+  - Yateen Vaviya  (Github username: Yateen00)
 All team members are from Sardar Patel Institute of Technology.
 
 ## Project Abstract  
-Our project is designed to provide a comprehensive AI-powered financial risk management and personal finance assistant for individual users. It offers several advanced features:
+Our project provides a comprehensive AI-driven financial risk management and personal finance assistant. Key features include:
 
-- **Personalized Dashboard**: A user-friendly interface that provides a complete overview of a user's financial portfolio.
-- **AI Summarizer**: Automatically summarizes key financial details such as expenses, investments, profits, and goals.
-- **Portfolio Analyzer & Rebalancer**: Suggests and adjusts the allocation of stocks, bonds, ETFs, crypto, and commodities based on the user's risk appetite. It also provides personalized recommendations to optimize individual asset categories.
-- **Tax Analyzer**: Identifies opportunities to minimize tax deductions by recommending tax-saving strategies, crucial for investments in stocks, bonds, and cryptocurrencies.
+- **Personalized Dashboard**: Displays a complete portfolio overview.
+- **AI Summarizer**: Summarizes expenses, investments, profits, and goals.
+- **Portfolio Analyzer & Rebalancer**: Balances the portfolio across stocks, bonds, ETFs, crypto, and commodities based on the user’s risk appetite, with personalized recommendations for optimization.
+- **Tax Analyzer**: Suggests tax-saving strategies for complex investment portfolios involving stocks, bonds, and crypto.
 
 ### Additional Features:
-- **Financial Summary**: Offers detailed insights into spending patterns and investment returns.
-- **Budget Management**: Allows users to set budgets, track expenses, and discover potential savings.
-- **Investment Tracking**: Monitors the performance of assets and provides rebalancing suggestions based on market trends.
-- **Risk Analysis**: Continuously evaluates market risks and suggests adjustments to manage portfolio volatility.
-- **Goal Setting**: Helps users define and achieve financial goals by tailoring suggestions based on progress and risk preferences.
+- **Financial Summary**: Provides detailed insights into spending and investment performance.
+- **Budget Management**: Tracks budgets and identifies potential savings.
+- **Investment Tracking & Goal Setting**: Monitors asset performance and helps users achieve financial goals.
+- **Risk Analysis**: Continuously evaluates market risk and suggests adjustments to manage volatility.
 
 ## Domain and Tools Used  
-This project integrates a diverse set of tools and technologies:
+This project integrates various technologies:
 
-- **Frontend**: React Native Expo, React Native Paper for UI components
-- **Backend**: Python, FastAPI for efficient backend operations
-- **Database & Authentication**: Firebase for real-time data handling and user management
+- **Frontend**:  
+  - React Native Expo for building the mobile app.  
+  - React Native Paper for UI components.
+- **Backend**:  
+  - Python, FastAPI to handle backend operations, including financial data and AI-driven analysis.
+- **Database & Authentication**: Firebase for real-time data management and user authentication.
 - **APIs**:  
-  - Yahoo Finance for live financial data  
-  - News API for relevant financial news  
-  - GROQ API for language model-driven insights  
-- **Machine Learning**: TensorFlow and Scikit-learn for implementing AI-based analysis and predictions
+  - Yahoo Finance for live financial data.  
+  - News API for relevant financial news.  
+  - GROQ API for LLM-powered insights.
+- **Machine Learning**: TensorFlow and Scikit-learn for implementing AI models.
 
-## Features Overview  
-- **User-specific insights**: Tailored to individual users based on their risk appetite and financial history.
-- **Cross-asset management**: Support for a wide range of financial assets, including stocks, bonds, crypto, and commodities.
-- **Real-time financial analysis**: Continuous monitoring of the financial market to deliver up-to-date suggestions and risk assessments.
-- **Optimization tools**: Intelligent tools to rebalance portfolios and save on taxes.
+## How It Works  
+The app interacts with FastAPI to handle backend processes and provide real-time financial data, analysis, and insights. Once everything is set up, all features, including financial summaries, portfolio management, and risk assessments, are fully accessible within the mobile app.
 
-## Getting Started  
-To use the application, follow these steps:  
+## Guide for Using Expo
+
+### Prerequisites  
+- Ensure you have **Node.js** installed.  
+- Install the **Expo CLI** globally using npm:
+  ```bash
+  npm install -g expo-cli
+  ```
+
+### Running the App  
 1. Clone the repository.
-2. Install the required dependencies with the following command:  
+2. Navigate to the app's directory.
+3. Install the necessary dependencies using npm:
+   ```bash
+   npm install
+   ```
+4. Start the Expo development server:
+   ```bash
+   expo start
+   ```
+5. You can now use the Expo app on your mobile device (iOS or Android) or an emulator to view and interact with the application.
+
+### Additional Expo Commands  
+- To build the app for deployment:
+  ```bash
+  expo build
+  ```
+- To run the app on an emulator:
+  ```bash
+  expo start --ios   # for iOS
+  expo start --android  # for Android
+  ```
+
+## Backend Setup with FastAPI  
+The application makes calls to the backend via FastAPI, which handles tasks such as financial data processing, AI-driven analysis, and interactions with external APIs (Yahoo Finance, News API). To run the FastAPI server:
+
+1. Install the dependencies from the `requirements.txt` file:
    ```bash
    pip install -r requirements.txt
    ```
-3. Start the application by running the backend and frontend environments.
-4. Explore the personalized dashboard and the various tools for managing personal finances and investments.
+2. Start the FastAPI server:
+   ```bash
+   uvicorn main:app --reload
+   ```
+3. Once the FastAPI server is running, the mobile app will automatically communicate with it, and all features like financial summaries, portfolio recommendations, and risk analysis will be available directly in the app.
 
-## Future Enhancements  
-We plan to introduce the following features in future updates:
-- **Advanced Machine Learning Models**: To provide deeper insights into market trends and user-specific portfolio optimization.
-- **Global Market Support**: Expanding the tool’s capabilities to support global markets and currencies.
-- **Automated Alerts**: Real-time notifications for market changes, tax updates, and investment opportunities.
+## Getting Started  
+1. Set up the backend and run the FastAPI server as mentioned above.
+2. Run the Expo app using the steps outlined in the "Guide for Using Expo."
+3. After setup, everything will be available within the app, which will handle communication with the FastAPI backend for real-time data and insights.
 
 ---
-
-This version covers additional features, tools, and a future roadmap, giving a comprehensive overview of your project. Feel free to adjust or expand further!
