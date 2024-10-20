@@ -18,6 +18,21 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 app = FastAPI()
 
+# Add ticker to company name mapping
+ticker_to_company = {
+    "RELIANCE.NS": "Reliance Industries",
+    "TCS.NS": "Tata Consultancy Services",
+    "HDFCBANK.NS": "HDFC Bank",
+    "INFY.NS": "Infosys",
+    "ICICIBANK.NS": "ICICI Bank",
+    "HINDUNILVR.NS": "Hindustan Unilever",
+    "SBIN.NS": "State Bank of India",
+    "BHARTIARTL.NS": "Bharti Airtel",
+    "ITC.NS": "ITC Limited",
+    "KOTAKBANK.NS": "Kotak Mahindra Bank",
+    # Add more mappings as needed
+}
+
 class PortfolioItem(BaseModel):
     symbol: str
     type: str
@@ -178,12 +193,6 @@ def predict_risk(symbol, data, asset_type):
 
     return predicted_risk
 
-def get_fund_type(symbol):
-    # This is a placeholder function. In a real-world scenario,
-    # you would query a database or API to get the fund type.
-    # For now, we'll return a random type
-    return np.random.choice(['equity', 'debt', 'balanced'])
-
 def fetch_news(query, num_articles=5):
     url = f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en"
     response = requests.get(url)
@@ -209,6 +218,12 @@ def analyze_sentiment(text):
     blob = TextBlob(text)
     return blob.sentiment.polarity
 
+def get_company_name(ticker):
+    if ticker in ticker_to_company:
+        return ticker_to_company.get(ticker, ticker)
+    else:
+        ticker
+
 def track_central_bank_news():
     rbi_news = fetch_news("RBI interest rates")
     global_news = fetch_news("global central banks interest rates")
@@ -220,10 +235,9 @@ def track_central_bank_news():
 
 def adjust_bond_valuation(bond_item, rbi_sentiment, global_sentiment):
     # Simplified bond valuation adjustment based on central bank sentiments
-    # Positive RBI sentiment might indicate rising Indian rates, potentially positive for Indian bonds
-    # Positive global sentiment might indicate rising global rates, potentially negative for Indian bonds
-    adjustment_factor = 1 + (rbi_sentiment - global_sentiment) * 0.1  # 10% max adjustment
-    
+    # Positive sentiment (likely rate increase) generally decreases bond values
+    # Negative sentiment (likely rate decrease) generally increases bond values
+    adjustment_factor = 1 - (rbi_sentiment * 0.05 + global_sentiment * 0.05)  # 10% max adjustment
     return bond_item['quantity'] * adjustment_factor
 
 def rebalance_portfolio(portfolio: Portfolio):
@@ -252,24 +266,27 @@ def rebalance_portfolio(portfolio: Portfolio):
         })
     
     return rebalanced_items
-
+    
 def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
     suggested_items = []
     rbi_sentiment, global_sentiment = track_central_bank_news()
     
     for item in rebalanced_items:
         asset_type = item['type']
-        data = fetch_data(item['symbol'], asset_type=asset_type)
+        ticker = item['symbol']
+        company_name = get_company_name(ticker)
+        
+        data = fetch_data(ticker, asset_type=asset_type)
         
         if data is not None:
-            predicted_risk = predict_risk(item['symbol'], data, asset_type)
+            predicted_risk = predict_risk(ticker, data, asset_type)
             if predicted_risk is not None:
                 # Adjust quantity based on predicted risk and risk factor
                 risk_adjustment = (predicted_risk / risk_factor) if risk_factor > 0 else 1
                 suggested_quantity = item['quantity'] * risk_adjustment
                 
-                # Incorporate sentiment analysis
-                asset_news = fetch_news(f"{item['symbol']} {asset_type}")
+                # Incorporate sentiment analysis using company name
+                asset_news = fetch_news(f"{company_name} stock")
                 asset_sentiment = np.mean([analyze_sentiment(news['title'] + " " + news['description']) for news in asset_news])
                 sentiment_adjustment = 1 + asset_sentiment * 0.1  # 10% max adjustment based on sentiment
                 
@@ -279,28 +296,26 @@ def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
                 if asset_type == 'bond':
                     suggested_quantity = adjust_bond_valuation(item, rbi_sentiment, global_sentiment)
                 elif asset_type == 'crypto':
-                    # Cryptocurrencies are more volatile, so we might want to limit exposure
                     suggested_quantity = min(suggested_quantity, item['quantity'] * 1.5)
                 elif asset_type == 'options':
-                    # Options are complex and risky, so we might want to be more conservative
                     suggested_quantity = min(suggested_quantity, item['quantity'] * 1.2)
                 
                 suggested_items.append(SuggestedItem(
-                    symbol=item['symbol'],
+                    symbol=ticker,
                     type=asset_type,
                     quantity=suggested_quantity,
                     risk_percentage=predicted_risk * 100
                 ))
             else:
                 suggested_items.append(SuggestedItem(
-                    symbol=item['symbol'],
+                    symbol=ticker,
                     type=asset_type,
                     quantity=item['quantity'],
                     risk_percentage=0  # Unable to calculate risk
                 ))
         else:
             suggested_items.append(SuggestedItem(
-                symbol=item['symbol'],
+                symbol=ticker,
                 type=asset_type,
                 quantity=item['quantity'],
                 risk_percentage=0  # Unable to fetch data
