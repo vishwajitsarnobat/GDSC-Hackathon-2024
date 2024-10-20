@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-pandas
-beautifulsoup4
-nltk
-groq
-python-dotenv
-aiohttp
