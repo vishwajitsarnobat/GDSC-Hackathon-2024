@@ -51,32 +51,38 @@ class SuggestedItem(BaseModel):
 class RebalancedPortfolio(BaseModel):
     items: List[SuggestedItem]
 
-def fetch_data(symbol, period='2y', asset_type='stock'):
+def fetch_data(symbol, period='1y', asset_type='stock'):
     try:
         if asset_type in ['stock', 'etf', 'mutual_fund']:
-            # Append '.NS' for NSE stocks
             if not symbol.endswith('.NS') and asset_type == 'stock':
                 symbol += '.NS'
             data = yf.download(symbol, period=period)
         elif asset_type == 'crypto':
-            # For simplicity, we're using WazirX API for crypto data
-            url = f"https://api.wazirx.com/api/v2/tickers/{symbol.lower()}inr"
-            response = requests.get(url)
+            end_date = datetime.now()
+            start_date = end_date - timedelta(days=365)  # 1 year (free tier limitation)
+            url = f"https://api.coingecko.com/api/v3/coins/{symbol.lower()}/market_chart/range"
+            params = {
+                "vs_currency": "inr",
+                "from": int(start_date.timestamp()),
+                "to": int(end_date.timestamp())
+            }
+            response = requests.get(url, params=params)
             if response.status_code == 200:
-                data = pd.DataFrame(response.json(), index=[0])
-                data['Date'] = pd.to_datetime(data['at'], unit='s')
-                data.set_index('Date', inplace=True)
-                data['Close'] = data['last'].astype(float)
-                data['Volume'] = data['volume'].astype(float)
+                json_data = response.json()
+                df = pd.DataFrame(json_data['prices'], columns=['Date', 'Close'])
+                df['Date'] = pd.to_datetime(df['Date'], unit='ms')
+                df.set_index('Date', inplace=True)
+                df['Volume'] = [item[1] for item in json_data['total_volumes']]
+                data = df
             else:
+                logging.error(f"CoinGecko API error: {response.status_code} - {response.text}")
                 raise ValueError(f"Unable to fetch data for {symbol}")
         elif asset_type in ['commodity', 'real_estate']:
-            # For commodities and real estate, we'll use relevant Indian ETFs or stocks
             commodity_map = {
-                'GOLD': 'GOLDBEES.NS',  # Gold BeES ETF
-                'SILVER': 'SILVERBEES.NS',  # Silver BeES ETF
-                'CRUDEOIL': 'GOLDBEES.NS',  # Using Gold BeES as a proxy for lack of direct oil ETF
-                'REALESTATE': 'NIFTYREIT.NS'  # Nifty Realty Index
+                'GOLD': 'GC=F',
+                'SILVER': 'SI=F',
+                'CRUDEOIL': 'CL=F',
+                'REALESTATE': 'NIFTYTV23REALT.NS'
             }
             symbol = commodity_map.get(symbol.upper(), symbol)
             data = yf.download(symbol, period=period)
@@ -89,7 +95,7 @@ def fetch_data(symbol, period='2y', asset_type='stock'):
         logging.info(f"Data fetched for {symbol}")
         return data
     except Exception as e:
-        logging.error(f"Error fetching data for {symbol}: {e}")
+        logging.error(f"Error fetching data for {symbol}: {str(e)}")
         return None
 
 def calculate_risk_metrics(data):
@@ -159,6 +165,11 @@ def predict_risk(symbol, data, asset_type):
     features = features[:-30]
     future_volatility = future_volatility[:len(features)]
 
+    # If we don't have enough data points, return a high risk value
+    if len(features) < 100:  # Arbitrary threshold, adjust as needed
+        logging.warning(f"Not enough data points for {symbol} to predict risk accurately. Returning high risk.")
+        return 0.5  # Arbitrary high risk value, adjust as needed
+
     # Split data
     train_size = int(len(features) * 0.8)
     X_train, X_test = features[:train_size], features[train_size:]
@@ -212,6 +223,8 @@ def fetch_news(query, num_articles=5):
             'description': description
         })
     
+    print("Stage 2")
+    print(news_list)
     return news_list
 
 def analyze_sentiment(text):
@@ -231,6 +244,8 @@ def track_central_bank_news():
     rbi_sentiment = np.mean([analyze_sentiment(news['title'] + " " + news['description']) for news in rbi_news])
     global_sentiment = np.mean([analyze_sentiment(news['title'] + " " + news['description']) for news in global_news])
     
+    print("Stage 4")
+    print(rbi_sentiment, global_sentiment)
     return rbi_sentiment, global_sentiment
 
 def adjust_bond_valuation(bond_item, rbi_sentiment, global_sentiment):
@@ -264,7 +279,9 @@ def rebalance_portfolio(portfolio: Portfolio):
             'type': item.type,
             'quantity': new_quantity
         })
-    
+        
+    print("Stage 1 done")
+    print(rebalanced_items)
     return rebalanced_items
     
 def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
@@ -281,18 +298,15 @@ def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
         if data is not None:
             predicted_risk = predict_risk(ticker, data, asset_type)
             if predicted_risk is not None:
-                # Adjust quantity based on predicted risk and risk factor
                 risk_adjustment = (predicted_risk / risk_factor) if risk_factor > 0 else 1
                 suggested_quantity = item['quantity'] * risk_adjustment
                 
-                # Incorporate sentiment analysis using company name
                 asset_news = fetch_news(f"{company_name} stock")
                 asset_sentiment = np.mean([analyze_sentiment(news['title'] + " " + news['description']) for news in asset_news])
-                sentiment_adjustment = 1 + asset_sentiment * 0.1  # 10% max adjustment based on sentiment
+                sentiment_adjustment = 1 + asset_sentiment * 0.1
                 
                 suggested_quantity *= sentiment_adjustment
                 
-                # Special adjustments for certain asset types
                 if asset_type == 'bond':
                     suggested_quantity = adjust_bond_valuation(item, rbi_sentiment, global_sentiment)
                 elif asset_type == 'crypto':
@@ -307,36 +321,70 @@ def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
                     risk_percentage=predicted_risk * 100
                 ))
             else:
+                logging.warning(f"Unable to predict risk for {ticker}")
                 suggested_items.append(SuggestedItem(
                     symbol=ticker,
                     type=asset_type,
                     quantity=item['quantity'],
-                    risk_percentage=0  # Unable to calculate risk
+                    risk_percentage=0
                 ))
         else:
+            logging.warning(f"Unable to fetch data for {ticker}")
             suggested_items.append(SuggestedItem(
                 symbol=ticker,
                 type=asset_type,
                 quantity=item['quantity'],
-                risk_percentage=0  # Unable to fetch data
+                risk_percentage=0
             ))
     
+    logging.info(f"Stage 6: Suggested items: {suggested_items}")
     return suggested_items
 
 @app.post("/rebalance_and_suggest/", response_model=RebalancedPortfolio)
 async def rebalance_and_suggest(portfolio: Portfolio):
     try:
-        # Step 1: Rebalance the portfolio
         rebalanced_items = rebalance_portfolio(portfolio)
-        
-        # Step 2: Predict risk and suggest new portfolio
         suggested_items = suggest_portfolio(rebalanced_items, portfolio.risk_factor)
         
-        return RebalancedPortfolio(items=suggested_items)
+        valid_items = [item for item in suggested_items if item.risk_percentage > 0]
+        invalid_items = [item for item in suggested_items if item.risk_percentage == 0]
+        
+        if invalid_items:
+            logging.warning(f"Unable to process the following items: {invalid_items}")
+        
+        if not valid_items:
+            raise HTTPException(status_code=400, detail="Unable to fetch data for any portfolio items")
+        
+        return RebalancedPortfolio(items=valid_items)
     except Exception as e:
-        logging.error(f"Error in rebalance_and_suggest: {e}")
+        logging.error(f"Error in rebalance_and_suggest: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+'''
+curl -X POST "http://127.0.0.1:8000/rebalance_and_suggest/" \
+-H "Content-Type: application/json" \
+-d '{
+  "items": [
+    {
+      "symbol": "TCS",
+      "type": "stock",
+      "quantity": 50
+    },
+    {
+      "symbol": "GOLDBEES",
+      "type": "commodity",
+      "quantity": 100
+    },
+    {
+      "symbol": "bitcoin",
+      "type": "crypto",
+      "quantity": 0.5
+    }
+  ],
+  "risk_factor": 0.7
+}'
+'''
