@@ -195,6 +195,13 @@ async def get_news(portfolio: List[str]):
     return generate_financial_news(portfolio)
 
 
+@app.post("/getSentiment/")
+async def get_sentiment(portfolio: List[str]):
+    """Receive portfolio (tickets) and return sentiment analysis."""
+    news = fetch_news_data(portfolio)
+    return get_sentiment_vader(news)
+
+
 if __name__ == "__main__":
     import uvicorn
 
