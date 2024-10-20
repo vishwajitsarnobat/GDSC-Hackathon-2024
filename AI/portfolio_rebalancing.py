@@ -264,7 +264,9 @@ def rebalance_portfolio(portfolio: Portfolio):
             'type': item.type,
             'quantity': new_quantity
         })
-    
+        
+    print("Stage 1 done")
+    print(rebalanced_items)
     return rebalanced_items
     
 def suggest_portfolio(rebalanced_items: List[Dict], risk_factor: float):
@@ -340,3 +342,28 @@ async def rebalance_and_suggest(portfolio: Portfolio):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
+'''
+curl -X POST "http://127.0.0.1:8000/rebalance_and_suggest/" \
+-H "Content-Type: application/json" \
+-d '{
+  "items": [
+    {
+      "symbol": "TCS",
+      "type": "stock",
+      "quantity": 50
+    },
+    {
+      "symbol": "GOLDBEES",
+      "type": "commodity",
+      "quantity": 100
+    },
+    {
+      "symbol": "bitcoin",
+      "type": "crypto",
+      "quantity": 0.5
+    }
+  ],
+  "risk_factor": 0.7
+}'
+'''
