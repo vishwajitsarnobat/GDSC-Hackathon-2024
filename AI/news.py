@@ -180,23 +180,26 @@ async def fetch_article_content(url):
 
 async def generate_financial_news(tickers):
     """Generate financial news for a given symbol using LLAMA API."""
-    output = {"articles": []}
+    output = {}
 
     for ticker in tickers:
         news = await fetch_news_data([ticker])
+        articles = []
         for index, row in news.iterrows():
+            if index >= 2:  # limit to 2
+                break
             article_content = await fetch_article_content(row["Link"])
             if article_content:
                 summary = await get_summary_llama(article_content)
                 if summary:
                     article = {
-                        "ticker": ticker,
                         "headline": row["Headline"],
                         "author": "Unknown",
                         "site": row["Link"],
                         "summary": summary,
                     }
-                    output["articles"].append(article)
+                    articles.append(article)
+        output[ticker] = articles
 
     return json.dumps(output, indent=4)
 
@@ -230,8 +233,8 @@ async def get_sentiment(portfolio: Portfolio):
 
 if __name__ == "__main__":
     import uvicorn
-    import asyncio
+    # import asyncio
 
-    # Run the test
-    asyncio.run(test())
+    # # Run the test
+    # asyncio.run(test())
     uvicorn.run(app, host="0.0.0.0", port=8000)
