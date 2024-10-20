@@ -1,54 +1,155 @@
-import { SafeAreaView, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, View, Modal, Text, } from 'react-native';
 import { FAB, Portal, Provider, Dialog, TextInput, Button } from 'react-native-paper';
 import { useState } from 'react'
-import StockCard from '../../cards/stockCard';
-import { getStockNews } from '../../apiExpress/express_news'
+import FinancialInstrumentCard from '../../cards/FinancialInstrumentCard';
+import Analyze from './Analyze';
 
-async function fetchStockNews() {
+
+async function getStockNews() {
   try {
     const stockNames = ['hdfc', 'reliance'];  // Example stock names
-    const newsData = await getStockNews(stockNames);
+    const newsData = "sd";
     console.log(newsData['news']);  // Access the 'news' field from the response
   } catch (error) {
     console.error('Error in fetching stock news:', error);
   }
+  return "hii"
 }
 
 
-const portfolio = () => {
-  const [stocks, setStocks] = useState([
-    { symbol: 'AAPL', companyName: 'Apple Inc.', price: 150.12, dateOfPurchase: '2023-10-01', currentPrice: 155.30 },
-    { symbol: 'GOOGL', companyName: 'Alphabet Inc.', price: 2803.79, dateOfPurchase: '2024-01-15', currentPrice: 2850.50 },
-  ]);
+const Portfolio = () => {
+
+ 
+
+
+  const [analyzeVisible, setAnalyzeVisible] = useState(false);
 
   const [visible, setVisible] = useState(false);
   const [newStock, setNewStock] = useState({ symbol: '', companyName: '', price: '', dateOfPurchase: '' });
   const [hasNotifications, setHasNotifications] = useState(true); // State to track notifications
+  const [analysisVisible, setAnalysisVisible] = useState(false);
+  const hideAnalyzeDialog = () => setAnalyzeVisible(false);
 
+  const [newsVisible, setNewsVisible] = useState(false); // State for news modal
+  const [newsData, setNewsData] = useState<string[]>([]); // State for storing news
+  const [currentSymbol, setCurrentSymbol] = useState<string>(''); // Store the symbol for which to fetch news
+  
   const showDialog = () => setVisible(true);
   const hideDialog = () => setVisible(false);
+  const hideNewsDialog = () => {
+    setHasNotifications(false)  
+    setNewsVisible(false)
+  }; // Hide news modal
+
 
   const handleNewsPress = () => {
-    console.log('News Clicked');
-    hasNotifications ? console.log("hii") : console.log("bey");
-    setHasNotifications(!hasNotifications);
-    fetchStockNews();
+    setCurrentSymbol('hii'); // Set the current symbol for which to fetch news
+    const news = getStockNews(); // Fetch news for this stock symbol
+    setNewsData(["hii"]); // Set the news data
+    setNewsVisible(true); // Show news modal
   };
 
-  const handleAddStock = () => {
-    if (newStock.symbol && newStock.companyName && newStock.price && newStock.dateOfPurchase) {
-      setStocks([
-        ...stocks,
+  
+  const [newInstrument, setNewInstrument] = useState({
+    type: 'stock', // Default type
+    symbol: '',
+    companyName: '',
+    price: '',
+    currentPrice: '',
+    dateOfPurchase: '',
+    numberOfUnits: '',
+  });
+
+  const [instruments, setInstruments] = useState([
+    {
+      type: 'stock',
+      symbol: 'AAPL',
+      companyName: 'Apple Inc.',
+      price: 150.12,
+      currentPrice: 170.0,
+      dateOfPurchase: '2023-10-01',
+      numberOfUnits: 10,
+    },
+    {
+      type: 'bond',
+      symbol: 'US10Y',
+      companyName: 'US 10-Year Treasury',
+      price: 100.0,
+      currentPrice: 102.5,
+      dateOfPurchase: '2023-09-15',
+      numberOfUnits: 5,
+    },
+    {
+      type: 'futures',
+      symbol: 'CL',
+      companyName: 'Crude Oil Futures',
+      price: 70.0,
+      currentPrice: 75.0,
+      dateOfPurchase: '2023-10-05',
+      numberOfUnits: 15,
+    },
+    {
+      type: 'options',
+      symbol: 'AAPL220121C00150000',
+      companyName: 'AAPL Call Option',
+      price: 5.0,
+      currentPrice: 8.0,
+      dateOfPurchase: '2023-09-20',
+      numberOfUnits: 20,
+    },
+    {
+      type: 'crypto',
+      symbol: 'BTC',
+      companyName: 'Bitcoin',
+      price: 45000.0,
+      currentPrice: 48000.0,
+      dateOfPurchase: '2023-10-01',
+      numberOfUnits: 2,
+    },
+    {
+      type: 'real estate',
+      symbol: 'NYC_APT',
+      companyName: 'New York City Apartment',
+      price: 1000000.0,
+      currentPrice: 1050000.0,
+      dateOfPurchase: '2023-01-01',
+      numberOfUnits: 1,
+    },
+  ]);
+
+
+  const handleAddInstrument = () => {
+    if (
+      newInstrument.symbol &&
+      newInstrument.companyName &&
+      newInstrument.price &&
+      newInstrument.currentPrice &&
+      newInstrument.dateOfPurchase &&
+      newInstrument.numberOfUnits
+    ) {
+      console.warn("Working")
+      setInstruments([
+        ...instruments,
         {
-          symbol: newStock.symbol,
-          companyName: newStock.companyName,
-          price: parseFloat(newStock.price),
-          dateOfPurchase: newStock.dateOfPurchase,  // Store date
-          currentPrice: parseFloat(newStock.price),  // Initially set currentPrice to purchase price
+          type: newInstrument.type,
+          symbol: newInstrument.symbol,
+          companyName: newInstrument.companyName,
+          price: parseFloat(newInstrument.price),
+          currentPrice: parseFloat(newInstrument.currentPrice),
+          dateOfPurchase: newInstrument.dateOfPurchase,
+          numberOfUnits: parseInt(newInstrument.numberOfUnits),
         },
       ]);
       hideDialog();
-      setNewStock({ symbol: '', companyName: '', price: '', dateOfPurchase: '' });
+      setNewInstrument({
+        type: 'stock',
+        symbol: '',
+        companyName: '',
+        price: '',
+        currentPrice: '',
+        dateOfPurchase: '',
+        numberOfUnits: '',
+      });
     }
   };
 
@@ -56,62 +157,111 @@ const portfolio = () => {
     <Provider>
       <SafeAreaView style={styles.container}>
         <ScrollView>
-          {stocks.map((stock, index) => (
-            <StockCard
-              key={index}
-              symbol={stock.symbol}
-              companyName={stock.companyName}
-              price={stock.price}
-              dateofPurchase={stock.dateOfPurchase}
-              currentPrice={stock.currentPrice}  // Pass the current price of the stock
-            />
+          {instruments.map((stock, index) => (
+            <FinancialInstrumentCard
+            key={index}
+            type={stock.type}
+            symbol={stock.symbol}
+            companyName={stock.companyName}
+            price={stock.price}
+            currentPrice={stock.currentPrice}
+            dateOfPurchase={stock.dateOfPurchase}
+            numberOfUnits={stock.numberOfUnits}
+          />
+          
           ))}
         </ScrollView>
 
         <Portal>
           <Dialog visible={visible} onDismiss={hideDialog}>
-            <Dialog.Title>Add Stock</Dialog.Title>
+            <Dialog.Title>Add Financial Instrument</Dialog.Title>
             <Dialog.Content>
               <TextInput
+                label="Type (stock, bond, futures, options, crypto, real estate)"
+                value={newInstrument.type}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, type: text }))}
+                style={styles.input}
+              />
+              <TextInput
                 label="Symbol"
-                value={newStock.symbol}
-                onChangeText={(text) => setNewStock((prev) => ({ ...prev, symbol: text }))}
+                value={newInstrument.symbol}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, symbol: text }))}
                 style={styles.input}
               />
               <TextInput
                 label="Company Name"
-                value={newStock.companyName}
-                onChangeText={(text) => setNewStock((prev) => ({ ...prev, companyName: text }))}
+                value={newInstrument.companyName}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, companyName: text }))}
                 style={styles.input}
               />
               <TextInput
-                label="Price"
-                value={newStock.price}
-                onChangeText={(text) => setNewStock((prev) => ({ ...prev, price: text }))}
+                label="Purchase Price"
+                value={newInstrument.price}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, price: text }))}
+                keyboardType="numeric"
+                style={styles.input}
+              />
+              <TextInput
+                label="Current Price"
+                value={newInstrument.currentPrice}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, currentPrice: text }))}
                 keyboardType="numeric"
                 style={styles.input}
               />
               <TextInput
                 label="Date of Purchase (YYYY-MM-DD)"
-                value={newStock.dateOfPurchase}
-                onChangeText={(text) => setNewStock((prev) => ({ ...prev, dateOfPurchase: text }))}
+                value={newInstrument.dateOfPurchase}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, dateOfPurchase: text }))}
+                style={styles.input}
+              />
+              <TextInput
+                label="Number of Units"
+                value={newInstrument.numberOfUnits}
+                onChangeText={(text) => setNewInstrument((prev) => ({ ...prev, numberOfUnits: text }))}
+                keyboardType="numeric"
                 style={styles.input}
               />
             </Dialog.Content>
             <Dialog.Actions>
-              <Button onPress={handleAddStock}>Add</Button>
+              <Button onPress={handleAddInstrument}>Add</Button>
               <Button onPress={hideDialog}>Cancel</Button>
             </Dialog.Actions>
           </Dialog>
         </Portal>
 
+        
+        <Portal>
+          
+
+          {/* News Modal */}
+          <Modal visible={newsVisible} onDismiss={hideNewsDialog}>
+            <View style={styles.newsModalContainer}>
+              <Text style={styles.newsTitle}>Latest News for {currentSymbol}</Text>
+              {newsData.length > 0 ? (
+                newsData.map((news, index) => (
+                  <Text key={index} style={styles.newsItem}>
+                    {news}
+                  </Text>
+                ))
+              ) : (
+                <Text>No news available.</Text>
+              )}
+              <Button onPress={hideNewsDialog}>Close</Button>
+            </View>
+          </Modal>
+        </Portal>
+
+        {/* Analyze Modal */}
+        <Modal visible={analyzeVisible} onRequestClose={hideAnalyzeDialog} animationType="slide">
+          <Analyze onClose={hideAnalyzeDialog} />
+        </Modal>
+
         <FAB
           style={styles.analyzeFab}
           icon="chart-bar"
-          onPress={() => console.log('Analyze Stocks')}
+          onPress={() => setAnalyzeVisible(true)} // Open the analysis modal
           color="white"
         />
-
         <FAB
           style={styles.fab}
           icon="plus"
@@ -169,9 +319,37 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'white',
   },
+  newsModalContainer: {
+    padding: 20,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  newsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  analysisModalContainer: {
+    padding: 20,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  analysisTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  newsItem: {
+    fontSize: 16,            // Font size for news items
+    color: '#333',           // Text color
+    marginVertical: 5,       // Space above and below each item
+    padding: 10,             // Padding around each item
+    borderBottomWidth: 1,    // Border at the bottom
+    borderBottomColor: '#ccc', // Color of the bottom border
+  },
   input: {
     marginBottom: 10,
   },
 });
 
-export default portfolio;
+export default Portfolio;
