@@ -14,6 +14,7 @@ import requests
 import os
 from dotenv import load_dotenv
 import logging
+import aiohttp
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +27,10 @@ try:
 except Exception as e:
     logging.error(f"Error downloading vader_lexicon: {e}")
 app = FastAPI()
+
+
+class Portfolio(BaseModel):
+    portfolio_json: List[str]
 
 
 # Function to get sentiment using VADER model
@@ -65,26 +70,26 @@ def get_sentiment_vader(news):
     return current_sentiments
 
 
-# Function to fetch news data
+# Asynchronous function to fetch news data
 async def fetch_news_data(tickers):
     finwiz_url = "https://finviz.com/quote.ashx?t="
     news_tables = {}
 
-    for ticker in tickers:
-        url = finwiz_url + ticker
-        try:
-            req = Request(
-                url=url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-                },
-            )
-            resp = urlopen(req)
-            html = BeautifulSoup(resp, features="lxml")
-            news_table = html.find(id="news-table")
-            news_tables[ticker] = news_table
-        except Exception as e:
-            logging.error(f"Error fetching data for {ticker}: {e}")
+    async with aiohttp.ClientSession() as session:
+        for ticker in tickers:
+            url = finwiz_url + ticker
+            try:
+                async with session.get(
+                    url,
+                    headers={
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+                    },
+                ) as resp:
+                    html = BeautifulSoup(await resp.text(), features="lxml")
+                    news_table = html.find(id="news-table")
+                    news_tables[ticker] = news_table
+            except Exception as e:
+                logging.error(f"Error fetching data for {ticker}: {e}")
 
     parsed_news = []
 
@@ -116,7 +121,7 @@ async def fetch_news_data(tickers):
     return news
 
 
-# Function to get summary using LLaMA model
+# Asynchronous function to get summary using LLaMA model
 async def get_summary_llama(prompt=""):
     api_key = os.getenv("GROQ_API_KEY")
     client = Groq(api_key=api_key)
@@ -147,20 +152,20 @@ async def get_summary_llama(prompt=""):
         return None
 
 
-# Function to fetch article content
+# Asynchronous function to fetch article content
 async def fetch_article_content(url):
     try:
-        req = Request(
-            url=url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-            },
-        )
-        resp = urlopen(req)
-        html = BeautifulSoup(resp, features="lxml")
-        paragraphs = html.find_all("p")
-        content = " ".join([para.get_text() for para in paragraphs])
-        return content
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+                },
+            ) as resp:
+                html = BeautifulSoup(await resp.text(), features="lxml")
+                paragraphs = html.find_all("p")
+                content = " ".join([para.get_text() for para in paragraphs])
+                return content
     except Exception as e:
         logging.error(f"Error fetching article content from {url}: {e}")
         return None
@@ -171,11 +176,11 @@ async def generate_financial_news(tickers):
     output = {"articles": []}
 
     for ticker in tickers:
-        news = fetch_news_data([ticker])
+        news = await fetch_news_data([ticker])
         for index, row in news.iterrows():
-            article_content = fetch_article_content(row["Link"])
+            article_content = await fetch_article_content(row["Link"])
             if article_content:
-                summary = get_summary_llama(article_content)
+                summary = await get_summary_llama(article_content)
                 if summary:
                     article = {
                         "ticker": ticker,
@@ -190,15 +195,15 @@ async def generate_financial_news(tickers):
 
 
 @app.post("/getNews/")
-async def get_news(portfolio: List[str]):
-    """Receive portfolio (tickets) and return generated news summaries."""
-    return generate_financial_news(portfolio)
+async def get_news(portfolio: Portfolio):
+    """Receive portfolio (tickers) and return generated news summaries."""
+    return await generate_financial_news(portfolio.portfolio_json)
 
 
 @app.post("/getSentiment/")
-async def get_sentiment(portfolio: List[str]):
-    """Receive portfolio (tickets) and return sentiment analysis."""
-    news = fetch_news_data(portfolio)
+async def get_sentiment(portfolio: Portfolio):
+    """Receive portfolio (tickers) and return sentiment analysis."""
+    news = await fetch_news_data(portfolio.portfolio_json)
     return get_sentiment_vader(news)
 
 

@@ -1,18 +1,20 @@
-from groq import Groq
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List
 import json
 import time
+import os
+from groq import Groq
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+app = FastAPI()
 
 
-def get_api_key(env_file, key_name):
-    with open(env_file, "r") as file:
-        for line in file:
-            if line.startswith(key_name):
-                # Extract the API key value
-                return line.split("=")[1].strip().strip("'")
-
-
-def get_summary(prompt=""):
-    api_key = get_api_key(".env", "GROQ_API_KEY")
+async def get_summary(prompt=""):
+    api_key = os.getenv("GROQ_API_KEY")
     client = Groq(api_key=api_key)
     try:
         completion = client.chat.completions.create(
@@ -73,11 +75,11 @@ def convert_to_json(summary_str):
     return summary_json
 
 
-def process_prompt(prompt):
+async def process_prompt(prompt):
     summary = None
     summary_json = None
     while not summary_json:
-        summary = get_summary(prompt)
+        summary = await get_summary(prompt)
         if not summary:
             print("Empty response, retrying...")
             time.sleep(1)  # Wait for a second before retrying
@@ -91,8 +93,21 @@ def process_prompt(prompt):
     return summary_json
 
 
+class PromptRequest(BaseModel):
+    prompt: str
+
+
+@app.post("/processPrompt/")
+async def summarize(request: PromptRequest):
+    summary_json = await process_prompt(request.prompt)
+    if summary_json:
+        return summary_json
+    else:
+        raise HTTPException(status_code=500, detail="Failed to process prompt")
+
+
 # Test function
-def test_process_prompt():
+async def test_process_prompt():
     sample_json = {
         "expenses": {
             "rent": 1000,
@@ -124,8 +139,16 @@ def test_process_prompt():
         "end_date": "2022-02-28",
     }
     prompt = json.dumps([sample_json, sample_json2])
-    process_prompt(prompt)
+    summary_json = await process_prompt(prompt)
+    print("Test Summary JSON:", summary_json)
 
 
-# Run the test
-test_process_prompt()
+if __name__ == "__main__":
+    import uvicorn
+    # import asyncio
+
+    # Run the test
+    # asyncio.run(test_process_prompt())
+
+    # Run the FastAPI app
+    uvicorn.run(app, host="0.0.0.0", port=8000)
