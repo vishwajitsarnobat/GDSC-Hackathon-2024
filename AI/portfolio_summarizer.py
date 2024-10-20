@@ -145,10 +145,10 @@ async def test_process_prompt():
 
 if __name__ == "__main__":
     import uvicorn
-    import asyncio
+    # import asyncio
 
-    # Run the test
-    asyncio.run(test_process_prompt())
+    # # Run the test
+    # asyncio.run(test_process_prompt())
 
     #  Run the FastAPI app
     uvicorn.run(app, host="0.0.0.0", port=8000)

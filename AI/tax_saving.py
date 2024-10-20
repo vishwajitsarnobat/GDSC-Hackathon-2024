@@ -1,8 +1,39 @@
 import json
 from datetime import datetime, timedelta
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Dict
+
+app = FastAPI()
 
 
-def process_past_sales(past_sales_json):
+class Asset(BaseModel):
+    name: str
+    buy_price: float
+    current_price: float
+    buy_date: str
+    type: str
+    total_stocks: int
+
+
+class Portfolio(BaseModel):
+    assets: List[Asset]
+
+
+class Sale(BaseModel):
+    name: str
+    buy_price: float
+    sale_price: float
+    buy_date: str
+    sale_date: str
+    type: str
+
+
+class PastSales(BaseModel):
+    sales: List[Sale]
+
+
+def process_past_sales(past_sales_json: str):
     past_sales = json.loads(past_sales_json)
     total_ltcg = 0
     total_stcg = 0
@@ -78,18 +109,18 @@ def process_single_asset(
     return tax_suggestions
 
 
-def tax_optimization_multiple_assets(portfolio_json, past_sales_json):
+@app.post("/tax_optimization/")
+async def tax_optimization(portfolio: Portfolio, past_sales: PastSales):
     current_date = datetime.now()
     tax_free_ltcg_limit = 100000
 
-    total_ltcg, total_stcg = process_past_sales(past_sales_json)
+    total_ltcg, total_stcg = process_past_sales(past_sales.json())
     tax_suggestions = []
     ltcg_assets = []
 
-    portfolio = json.loads(portfolio_json)
-    for asset in portfolio["assets"]:
+    for asset in portfolio.assets:
         tax_suggestions = process_single_asset(
-            asset,
+            asset.dict(),
             current_date,
             tax_free_ltcg_limit,
             total_ltcg,
@@ -100,33 +131,7 @@ def tax_optimization_multiple_assets(portfolio_json, past_sales_json):
     return json.dumps(tax_suggestions, indent=4)
 
 
-def main():
-    # Example usage
-    portfolio_json = """
-    {
-        "assets": [
-            {"name": "Stock A", "buy_price": 100, "current_price": 150, "buy_date": "2022-01-01", "type": "stock", "total_stocks": 10},
-            {"name": "Stock B", "buy_price": 200, "current_price": 300, "buy_date": "2021-03-10", "type": "stock", "total_stocks": 5},
-            {"name": "Bond C", "buy_price": 1000, "current_price": 1100, "buy_date": "2020-04-15", "type": "bond", "total_stocks": 2}
-        ]
-    }
-    """
-
-    past_sales_json = """
-    {
-        "sales": [
-            {"name": "Stock X", "buy_price": 100, "sale_price": 120, "buy_date": "2020-01-01", "sale_date": "2021-03-10", "type": "stock"},
-            {"name": "Stock Y", "buy_price": 300, "sale_price": 290, "buy_date": "2020-05-01", "sale_date": "2022-06-15", "type": "stock"}
-        ]
-    }
-    """
-
-    # Call the function for multiple assets
-    multiple_assets_suggestions = tax_optimization_multiple_assets(
-        portfolio_json, past_sales_json
-    )
-    print(multiple_assets_suggestions)
-
-
 if __name__ == "__main__":
-    main()
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
