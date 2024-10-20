@@ -201,6 +201,20 @@ async def generate_financial_news(tickers):
     return json.dumps(output, indent=4)
 
 
+async def test():
+    tickers = ["TCS", "RELI"]
+    news = await fetch_news_data(tickers)
+
+    print("Processing with VADER sentiment model:")
+    vader_sentiments = get_sentiment_vader(news)
+    print("VADER Sentiments:", vader_sentiments)
+
+    # Example usage of getting top articles JSON
+    output = await generate_financial_news(tickers)
+    print("VADER Sentiments:", vader_sentiments)
+    print("Top Articles JSON:", output)
+
+
 @app.post("/getNews/")
 async def get_news(portfolio: Portfolio):
     """Receive portfolio (tickers) and return generated news summaries."""
@@ -216,5 +230,8 @@ async def get_sentiment(portfolio: Portfolio):
 
 if __name__ == "__main__":
     import uvicorn
+    import asyncio
 
+    # Run the test
+    asyncio.run(test())
     uvicorn.run(app, host="0.0.0.0", port=8000)
