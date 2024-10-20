@@ -1,14 +1,16 @@
+
+
 ---
 
 # AI-Driven Financial Risk Management and Personal Finance Assistant
 
 ## Team Details  
 **Team Abhimanyu**  
-- **Team Leader**: Vishwajit Sarnobat (Github username: vishwajitsarnobat)
+- **Team Leader**: [Vishwajit Sarnobat](https://github.com/vishwajitsarnobat)  
 - **Team Members**:  
-  - Nikhil Vishwakarma  (Github username: Vishwakarma-Nikhil)
-  - Vinayak Yadav  (Github username: vinayakyadav2709)
-  - Yateen Vaviya  (Github username: Yateen00)
+  - [Nikhil Vishwakarma](https://github.com/Vishwakarma-Nikhil)  
+  - [Vinayak Yadav](https://github.com/vinayakyadav2709)  
+  - [Yateen Vaviya](https://github.com/Yateen00)  
 All team members are from Sardar Patel Institute of Technology.
 
 ## Project Abstract  
