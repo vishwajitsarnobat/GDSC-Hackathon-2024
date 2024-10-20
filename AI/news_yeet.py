@@ -115,7 +115,7 @@ def fetch_news_data(tickers):
 
 # Function to get summary using LLaMA model
 def get_summary_llama(prompt=""):
-    api_key = get_api_key("api_key.txt")
+    api_key = get_api_key("../summary/api_key.txt")
     client = Groq(api_key=api_key)
     try:
         completion = client.chat.completions.create(
@@ -186,6 +186,28 @@ def get_top_articles_json(ticker):
     return json.dumps(articles, indent=4)
 
 
+def get_top_articles_tickers(tickers):
+    output = {"articles": []}
+
+    for ticker in tickers:
+        news = fetch_news_data([ticker])
+        for index, row in news.iterrows():
+            article_content = fetch_article_content(row["Link"])
+            if article_content:
+                summary = get_summary_llama(article_content)
+                if summary:
+                    article = {
+                        "ticker": ticker,
+                        "headline": row["Headline"],
+                        "author": "Unknown",
+                        "site": row["Link"],
+                        "summary": summary,
+                    }
+                    output["articles"].append(article)
+
+    return json.dumps(output, indent=4)
+
+
 # Main function to process news data and get summaries
 def main():
     tickers = ["TCS"]
@@ -196,12 +218,8 @@ def main():
     print("VADER Sentiments:", vader_sentiments)
 
     # Example usage of getting top articles JSON
-    output = []
-    for ticker in tickers:
-        article = get_top_articles_json(ticker)
-        output.append(article)
-    for article in output:
-        print(article)
+    output = get_top_articles_tickers(tickers)
+    print(output)
 
 
 # Run the main function
