@@ -1,103 +1,83 @@
-import * as React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Card, Title, Paragraph, Button, FAB, useTheme } from 'react-native-paper';
+import React from 'react';
+import { Card } from 'react-native-paper';
+import { View, Text, StyleSheet } from 'react-native';
 
 interface StockCardProps {
   symbol: string;
   companyName: string;
   price: number;
-  change: number;
-  dateOfPurchase: string;
+  dateofPurchase: string;
+  currentPrice: number;
 }
 
-const StockCard: React.FC<StockCardProps> = ({ symbol, companyName, price, change, dateOfPurchase }) => {
-  const theme = useTheme();
+const StockCard: React.FC<StockCardProps> = ({
+  symbol,
+  companyName,
+  price,
+  dateofPurchase,
+  currentPrice,
+}) => {
+  const changePercentage = (((currentPrice - price) / price) * 100).toFixed(2);
 
   return (
     <Card style={styles.card}>
       <Card.Content>
+        <View style={styles.header}>
+          <Text style={styles.title}>{companyName} ({symbol})</Text>
+        </View>
         <View style={styles.row}>
-          <View style={styles.info}>
-            <Title>{symbol}</Title>
-            <Paragraph>{companyName}</Paragraph>
-            <Paragraph style={styles.price}>${price.toFixed(2)}</Paragraph>
-            <Paragraph
-              style={[styles.change, change >= 0 ? styles.positive : styles.negative]}
-            >
-              {change >= 0 ? '+' : ''}{change.toFixed(2)}%
-            </Paragraph>
-            <Paragraph style={styles.date}>Purchased on: {dateOfPurchase}</Paragraph>
+          <View style={styles.leftColumn}>
+            <Text style={styles.purchasePrice}>Purchase Price: ${price.toFixed(2)}</Text>
+            <Text>Date of Purchase: {dateofPurchase}</Text>
+          </View>
+          <View style={styles.rightColumn}>
+            <Text style={styles.currentPrice}>${currentPrice.toFixed(2)}</Text>
+            <Text style={parseFloat(changePercentage) >= 0 ? styles.positiveChange : styles.negativeChange}>
+              Change: {changePercentage}%
+            </Text>
           </View>
         </View>
       </Card.Content>
-      
     </Card>
   );
 };
 
-const App = () => {
-  return (
-    <View style={styles.container}>
-      <StockCard
-        symbol="AAPL"
-        companyName="Apple Inc."
-        price={150.12}
-        change={1.24}
-        dateOfPurchase="2023-10-01"
-      />
-
-      
-    </View>
-  );
-};
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  fab: {
-    position: 'absolute',
-    right: 16,
-    bottom: 16,
-    backgroundColor: '#4A148C',  // Dark Purple for Add Stock
-  },
-  newsFab: {
-    position: 'absolute',
-    left: 16,
-    bottom: 16,
-    backgroundColor: '#4A148C',  // Same Dark Purple for consistency
-  },
   card: {
     margin: 10,
-    borderRadius: 8,
+    borderRadius: 10,
+  },
+  header: {
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
-  info: {
+  leftColumn: {
     flex: 1,
   },
-  price: {
-    fontSize: 18,
-    fontWeight: 'bold',
+  rightColumn: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
-  change: {
-    fontSize: 16,
-    marginTop: 4,
+  purchasePrice: {
+    marginBottom: 5,
   },
-  date: {
-    marginTop: 8,
-    fontStyle: 'italic',
+  currentPrice: {
+    fontSize: 20, // Increased font size for current price
+    marginBottom: 5,
   },
-  positive: {
+  positiveChange: {
     color: 'green',
   },
-  negative: {
+  negativeChange: {
     color: 'red',
   },
 });
 
-
-export default App;
+export default StockCard;
